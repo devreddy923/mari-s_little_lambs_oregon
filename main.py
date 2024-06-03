@@ -38,6 +38,7 @@ st.markdown("""
         text-align: center;
         flex: 1 1 22%; 
         min-height: 150px; 
+        margin-bottom: 20px; /* Added vertical margin */
     }
 
     .metric-box h4 {
@@ -630,8 +631,13 @@ if st.session_state.page == 'input':
         active_df = active_df.dropna(axis=1, how='all')
         hold_df = hold_df.dropna(axis=1, how='all')
 
-        active_df['Dob'] = pd.to_datetime(active_df['Dob'], errors='coerce')
-        hold_df['Dob'] = pd.to_datetime(hold_df['Dob'], errors='coerce')
+        try:
+            active_df['Dob'] = pd.to_datetime(active_df['Dob'], errors='coerce')
+            hold_df['Dob'] = pd.to_datetime(hold_df['Dob'], errors='coerce')
+        except KeyError:
+            st.error("The required 'Dob' column is missing in one or more uploaded files.")
+            st.stop()
+
         hold_df['Admission Date'] = pd.to_datetime(hold_df['Admission Date'], errors='coerce')
 
         # Initialize classroom with student capacity for each level
@@ -724,8 +730,9 @@ if st.session_state.page == 'input':
         st.session_state.hold_df = hold_df
         st.session_state.fte_df = fte_df
 
-        # Switch to the output page
-        switch_page('output')
+        # Switch to the output page immediately
+        st.session_state.page = 'output'
+        st.experimental_rerun()
 
 elif st.session_state.page == 'output':
 
