@@ -30,7 +30,7 @@ st.markdown("""
         justify-content: space-between;
         align-items: center;
         padding: 15px;
-        margin: 15px;
+        margin: 30px;
         background-color: transparent;
         border-radius: 10px;
         border: 2px solid;  
@@ -48,22 +48,8 @@ st.markdown("""
     .metric-box p {
         font-size: 1.5em;
         font-weight: bold;
-        color: #4CAF50;
         margin: 5px 0 0 0;
         align-self: center;
-    }
-
-    .availability-yes, .availability-no {
-        font-size: 1.5em;
-        font-weight: bold;
-    }
-
-    .availability-yes {
-        color: green;
-    }
-
-    .availability-no {
-        color: red;
     }
 
     .tooltip {
@@ -212,25 +198,6 @@ st.markdown("""
     }
 
     </style>
-    """, unsafe_allow_html=True)
-
-# Inject JavaScript to change the colors dynamically
-st.markdown("""
-    <script>
-    function setTableHeaderColors() {
-        const headers = document.querySelectorAll('.horizontal-table th, .horizontal-table td.table-header');
-        const theme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
-        headers.forEach(header => {
-            if (theme === 'dark') {
-                header.style.color = 'white';
-            } else {
-                header.style.color = 'black';
-            }
-        });
-    }
-    document.addEventListener('DOMContentLoaded', setTableHeaderColors);
-    document.addEventListener('click', setTableHeaderColors);  // Adjust colors on interaction
-    </script>
     """, unsafe_allow_html=True)
 
 # Define the classes and their age ranges
@@ -819,7 +786,7 @@ elif st.session_state.page == 'output':
             st.markdown(f"""
             <div class='metric-box centered'>
                 <h4>{metric['label']}</h4>
-                <p>{metric['value']}</p>
+                <p style="color: green;">{metric['value']}</p>
             </div>
             """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -828,11 +795,15 @@ elif st.session_state.page == 'output':
 
     availability_cols = st.columns(3)
     for i, metric in enumerate(availability_metrics):
+        if metric["label"] == "Availability for the Requested Date" and metric["value"] == "No":
+            value = f'<p style="color: red;">{metric["value"]}</p>'
+        else:
+            value = f'<p style="color: green;">{metric["value"]}</p>'
         with availability_cols[i]:
             st.markdown(f"""
             <div class='metric-box centered'>
                 <h4>{metric['label']}</h4>
-                <p>{metric['value']}</p>
+                {value}
             </div>
             """, unsafe_allow_html=True)
 
