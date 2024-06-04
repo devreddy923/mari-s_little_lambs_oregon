@@ -766,15 +766,15 @@ elif st.session_state.page == 'output':
         {"label": "Total Active Students", "value": results["Total Active Students"]},
         {"label": "Total Students in Hold", "value": results["Total Students in Hold"]},
         {"label": "Total Capacity of Class", "value": results["Total Capacity of Class"]},
-        {"label": "Students Graduating Soon", "value": results["Students Graduating Soon"]},
-        {"label": "Students Admitted Recently", "value": results["Students Admitted Recently"]},
+        {"label": "Students Graduating Soon (in 60 days)", "value": results["Students Graduating Soon"]},
+        {"label": "Students Admitted Recently (in 60 days)", "value": results["Students Admitted Recently"]},
         {"label": "FTE", "value": results["FTE"]},
         {"label": "Avg Wait Time in Days", "value": results["Avg Wait Time in Days"]}  # Changed label
     ]
 
     availability_metrics = [
         {"label": "Availability for the Requested Date", "value": results["Availability"]},
-        {"label": "Soonest Available Date", "value": results["Soonest Available Date"]},
+        {"label": "Earliest Available Date", "value": results["Soonest Available Date"]},
         {"label": "Schedule Requested", "value": ", ".join(results["Schedule Requested"])}
     ]
 
