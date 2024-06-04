@@ -38,7 +38,6 @@ st.markdown("""
         text-align: center;
         flex: 1 1 22%; 
         min-height: 150px; 
-        margin-bottom: 20px; /* Added vertical margin */
     }
 
     .metric-box h4 {
@@ -75,7 +74,7 @@ st.markdown("""
 
     .tooltip .tooltiptext {
         visibility: hidden;
-        width: 150px;
+        width: 200px;
         background-color: black;
         color: #fff;
         text-align: center;
@@ -85,7 +84,7 @@ st.markdown("""
         z-index: 1;
         bottom: 125%;
         left: 50%;
-        margin-left: -75px;
+        margin-left: -100px;
         opacity: 0;
         transition: opacity 0.3s;
     }
@@ -110,12 +109,24 @@ st.markdown("""
 
     .horizontal-table th {
         background-color: transparent;
-        color: white;
+        font-weight: bold;  /* Bold header text */
+        font-family: 'Nunito', sans-serif; /* Ensure Nunito font */
     }
 
     .horizontal-table td {
         background-color: transparent;
         color: white;
+        font-weight: bold;  /* Bold cell text */
+        font-size: 1.2em; /* Increase the font size */
+        font-family: 'Nunito', sans-serif; /* Ensure Nunito font */
+    }
+
+    .dark-mode .horizontal-table th, .dark-mode .horizontal-table td.table-header {
+        color: white !important;  /* Change to white for dark mode */
+    }
+
+    .light-mode .horizontal-table th, .light-mode .horizontal-table td.table-header {
+        color: black !important;  /* Change to black for light mode */
     }
 
     .calendar {
@@ -175,13 +186,51 @@ st.markdown("""
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
-        gap: 20px; /* Increase the gap between metric boxes */
+        gap: 40px; /* Increase the gap between metric boxes */
     }
 
     .metric-container .metric-box {
         margin-bottom: 30px; /* Increase vertical spacing between rows */
     }
+
+    .spacing-row {
+        margin-bottom: 40px; /* Increase vertical spacing between rows of metrics */
+    }
+
+    /* Explicitly targeting the specific header */
+    .horizontal-table th.kids-in-class-header {
+        font-weight: bold;  /* Bold header text */
+        font-family: 'Nunito', sans-serif; /* Ensure Nunito font */
+    }
+
+    .dark-mode .horizontal-table th.kids-in-class-header, .dark-mode .horizontal-table th.table-header {
+        color: white !important;  /* Change to white for dark mode */
+    }
+
+    .light-mode .horizontal-table th.kids-in-class-header, .light-mode .horizontal-table th.table-header {
+        color: black !important;  /* Change to black for light mode */
+    }
+
     </style>
+    """, unsafe_allow_html=True)
+
+# Inject JavaScript to change the colors dynamically
+st.markdown("""
+    <script>
+    function setTableHeaderColors() {
+        const headers = document.querySelectorAll('.horizontal-table th, .horizontal-table td.table-header');
+        const theme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+        headers.forEach(header => {
+            if (theme === 'dark') {
+                header.style.color = 'white';
+            } else {
+                header.style.color = 'black';
+            }
+        });
+    }
+    document.addEventListener('DOMContentLoaded', setTableHeaderColors);
+    document.addEventListener('click', setTableHeaderColors);  // Adjust colors on interaction
+    </script>
     """, unsafe_allow_html=True)
 
 # Define the classes and their age ranges
@@ -603,7 +652,7 @@ if st.session_state.page == 'input':
         schedule = st.multiselect("Select Schedule", ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
                                   default=['Monday', 'Wednesday'])
         program_type = st.selectbox("Select Program Type", ['Fixed', 'Flexible'], index=0)
-        joining_date = st.date_input("Preferred Joining Date", value=datetime(2024, 6, 28))
+        joining_date = st.date_input("Preferred Joining Date", value=datetime.now().date())
 
         # File uploads
         active_file = st.file_uploader("Upload Active Excel File", type=["xlsx"])
@@ -618,121 +667,121 @@ if st.session_state.page == 'input':
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    if submit_button and active_file and hold_file and fte_file:
-        active_df = pd.read_excel(active_file)
-        hold_df = pd.read_excel(hold_file)
+    if submit_button:
+        if not (active_file and hold_file and fte_file):
+            st.error("Not all 3 files are uploaded. Please upload all the required files.")
+        else:
+            active_df = pd.read_excel(active_file)
+            hold_df = pd.read_excel(hold_file)
 
-        active_df.columns = active_df.iloc[3]
-        hold_df.columns = hold_df.iloc[3]
+            active_df.columns = active_df.iloc[3]
+            hold_df.columns = hold_df.iloc[3]
 
-        active_df = active_df.drop([0, 1, 2, 3]).reset_index(drop=True)
-        hold_df = hold_df.drop([0, 1, 2, 3]).reset_index(drop=True)
+            active_df = active_df.drop([0, 1, 2, 3]).reset_index(drop=True)
+            hold_df = hold_df.drop([0, 1, 2, 3]).reset_index(drop=True)
 
-        active_df = active_df.dropna(axis=1, how='all')
-        hold_df = hold_df.dropna(axis=1, how='all')
+            active_df = active_df.dropna(axis=1, how='all')
+            hold_df = hold_df.dropna(axis=1, how='all')
 
-        try:
             active_df['Dob'] = pd.to_datetime(active_df['Dob'], errors='coerce')
             hold_df['Dob'] = pd.to_datetime(hold_df['Dob'], errors='coerce')
-        except KeyError:
-            st.error("The required 'Dob' column is missing in one or more uploaded files.")
-            st.stop()
+            hold_df['Admission Date'] = pd.to_datetime(hold_df['Admission Date'], errors='coerce')
 
-        hold_df['Admission Date'] = pd.to_datetime(hold_df['Admission Date'], errors='coerce')
+            # Initialize classroom with student capacity for each level
+            capacity_levels = [8, 8, 7, 20]
+            classroom = Classroom(capacity_levels)
+            classroom.read_existing_data(active_df, hold_df)
 
-        # Initialize classroom with student capacity for each level
-        capacity_levels = [8, 8, 7, 20]
-        classroom = Classroom(capacity_levels)
-        classroom.read_existing_data(active_df, hold_df)
+            # Create new applicant
+            new_applicant = Student(name, dob, schedule, program_type)
 
-        # Create new applicant
-        new_applicant = Student(name, dob, schedule, program_type)
+            total_active_students, total_hold_students, graduating_soon, admitted_recent = classroom.kpi_calculate(
+                new_applicant.level)
+            next_available_date, schedule, flexible = classroom.apply_for_admission(new_applicant, joining_date)
 
-        total_active_students, total_hold_students, graduating_soon, admitted_recent = classroom.kpi_calculate(
-            new_applicant.level)
-        next_available_date, schedule, flexible = classroom.apply_for_admission(new_applicant, joining_date)
+            # FTE calculation
+            fte_df = pd.read_excel(fte_file, skiprows=2, header=1)
+            fte_df = fte_df.reset_index()
+            level_dict = {'Infants': 1, 'Wobblers': 2, 'Older Toddlers': 3, 'Preschool': 4}
+            fte_df['Room'] = fte_df['Room'].map(level_dict)
+            fte_df = fte_df[fte_df['Room'] == new_applicant.level]
+            fte_count = (fte_df['Total'].sum())
+            # fte_count = (fte_df['Total'][new_applicant.level].mean() * classroom.capacity_levels[new_applicant.level])
 
-        # FTE calculation
-        fte_df = pd.read_excel(fte_file, skiprows=2, header=1)
-        fte_df = fte_df.reset_index()
-        level_dict = {'Infants': 1, 'Wobblers': 2, 'Older Toddlers': 3, 'Preschool': 4}
-        fte_df['Room'] = fte_df['Room'].map(level_dict)
-        fte_count = (fte_df['Total'][new_applicant.level].mean() * classroom.capacity_levels[new_applicant.level])
+            if next_available_date is not False:
+                next_available_date = datetime.combine(next_available_date, datetime.min.time())  # Ensure datetime type
+                joining_date = datetime.combine(joining_date, datetime.min.time())  # Ensure datetime type
+                waittime = (next_available_date - joining_date).days
+            else:
+                waittime = 365
+            if next_available_date > joining_date:
+                availability = "No"
+            else:
+                availability = "Yes"
 
-        if next_available_date is not False:
-            next_available_date = datetime.combine(next_available_date, datetime.min.time())  # Ensure datetime type
-            joining_date = datetime.combine(joining_date, datetime.min.time())  # Ensure datetime type
-            waittime = (next_available_date - joining_date).days
-        else:
-            waittime = 365
-        if next_available_date > joining_date:
-            availability = "No"
-        else:
-            availability = "Yes"
+            # Store results in session state
+            st.session_state.results = {
+                "Class": new_applicant.get_class_name(),
+                "Total Active Students": sum(total_active_students),
+                "Total Students in Hold": sum(total_hold_students),
+                "Total Capacity of Class": classroom.capacity_levels[new_applicant.level - 1],
+                "Students Graduating Soon": sum(graduating_soon),
+                "Students Admitted Recently": sum(admitted_recent),
+                "FTE": round(fte_count, 2),
+                "Avg Wait Time in Days": waittime,  # Changed label
+                "Availability": availability,
+                "Soonest Available Date": next_available_date.date(),  # Display only the date
+                "Schedule Requested": schedule
+            }
 
-        # Store results in session state
-        st.session_state.results = {
-            "Class": new_applicant.get_class_name(),
-            "Total Active Students": sum(total_active_students),
-            "Total Students in Hold": sum(total_hold_students),
-            "Total Capacity of Class": classroom.capacity_levels[new_applicant.level - 1],
-            "Students Graduating Soon": sum(graduating_soon),
-            "Students Admitted Recently": sum(admitted_recent),
-            "FTE": round(fte_count, 2),
-            "Avg Wait Time in Days": waittime,  # Changed label
-            "Availability": availability,
-            "Soonest Available Date": next_available_date.date(),  # Display only the date
-            "Schedule Requested": schedule
-        }
+            # Run the simulation
+            start_date = datetime.now().strftime('%d-%m-%Y')  # Use the current date as the start date
+            class_name = new_applicant.get_class_name()  # Get the correct class name based on the student's age
 
-        # Run the simulation
-        start_date = joining_date.strftime('%d-%m-%Y')  # Use the joining date as the start date
-        class_name = new_applicant.get_class_name()  # Get the correct class name based on the student's age
+            simulation_results = refined_simulate_three_months_with_graduation_and_schedule(start_date, active_df, hold_df)
 
-        simulation_results = refined_simulate_three_months_with_graduation_and_schedule(start_date, active_df, hold_df)
+            final_data = []
+            for result in simulation_results:
+                graduations = result['Graduations']
+                admissions = result['Admissions']
+                attendance = result['Attendance'][class_name]
 
-        final_data = []
-        for result in simulation_results:
-            graduations = result['Graduations']
-            admissions = result['Admissions']
-            attendance = result['Attendance'][class_name]
+                graduation_sentences = []
+                admission_sentences = []
 
-            graduation_sentences = []
-            admission_sentences = []
+                for grad in graduations:
+                    if grad[2] == class_name:
+                        graduation_sentences.append(f"{grad[0]} {grad[1]} graduated from {grad[2]} to {grad[3]}")
+                    elif grad[3] == class_name:
+                        graduation_sentences.append(f"{grad[0]} {grad[1]} graduated into {grad[3]} from {grad[2]}")
+                    elif grad[3] == 'Graduated':
+                        graduation_sentences.append(f"{grad[0]} {grad[1]} graduated out of daycare from {grad[2]}")
 
-            for grad in graduations:
-                if grad[2] == class_name:
-                    graduation_sentences.append(f"{grad[0]} {grad[1]} graduated from {grad[2]} to {grad[3]}")
-                elif grad[3] == class_name:
-                    graduation_sentences.append(f"{grad[0]} {grad[1]} graduated into {grad[3]} from {grad[2]}")
-                elif grad[3] == 'Graduated':
-                    graduation_sentences.append(f"{grad[0]} {grad[1]} graduated out of daycare from {grad[2]}")
+                for adm in admissions:
+                    if adm[2] == class_name:
+                        admission_sentences.append(f"{adm[0]} {adm[1]} was admitted to {adm[2]}")
 
-            for adm in admissions:
-                if adm[2] == class_name:
-                    admission_sentences.append(f"{adm[0]} {adm[1]} was admitted to {adm[2]}")
+                final_data.append({
+                    'Date': result['Date'].strftime('%Y-%m-%d'),
+                    'Day of Week': result['Date'].strftime('%A'),
+                    f"Kids in Class for {class_name}": result['Capacities'][class_name],  # Changed label
+                    'Graduations': " | ".join(graduation_sentences) if graduation_sentences else "None",
+                    'Admissions': " | ".join(admission_sentences) if admission_sentences else "None",
+                    'Attendance': attendance
+                })
 
-            final_data.append({
-                'Date': result['Date'].strftime('%Y-%m-%d'),
-                'Day of Week': result['Date'].strftime('%A'),
-                f"Capacity for {class_name}": result['Capacities'][class_name],
-                'Graduations': " | ".join(graduation_sentences) if graduation_sentences else "None",
-                'Admissions': " | ".join(admission_sentences) if admission_sentences else "None",
-                'Attendance': attendance
-            })
+            final_df = pd.DataFrame(final_data)
 
-        final_df = pd.DataFrame(final_data)
+            # Store simulation results in session state
+            st.session_state.simulation_results = final_df
+            st.session_state.start_date = datetime.now()  # Save start_date in session state
+            st.session_state.active_df = active_df
+            st.session_state.hold_df = hold_df
+            st.session_state.fte_df = fte_df
 
-        # Store simulation results in session state
-        st.session_state.simulation_results = final_df
-        st.session_state.start_date = joining_date  # Save start_date in session state
-        st.session_state.active_df = active_df
-        st.session_state.hold_df = hold_df
-        st.session_state.fte_df = fte_df
-
-        # Switch to the output page immediately
-        st.session_state.page = 'output'
-        st.experimental_rerun()
+            # Switch to the output page immediately
+            st.session_state.page = 'output'
+            st.experimental_rerun()
 
 elif st.session_state.page == 'output':
 
@@ -775,6 +824,8 @@ elif st.session_state.page == 'output':
             """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
+    st.markdown("<div class='spacing-row'></div>", unsafe_allow_html=True)  # Add a spacing row
+
     availability_cols = st.columns(3)
     for i, metric in enumerate(availability_metrics):
         with availability_cols[i]:
@@ -793,12 +844,16 @@ elif st.session_state.page == 'output':
 
     # Prepare the table data
     class_name = results["Class"]
-    capacity_column = f"Capacity for {class_name}"
+    capacity_column = f"Kids in Class for {class_name}"  # Changed label
     max_capacity = results["Total Capacity of Class"]
 
     table_data = {
-        "Day": [],
-        "Capacity": [],
+        "Day": ["Kids in Class"],
+        "Monday": [],
+        "Tuesday": [],
+        "Wednesday": [],
+        "Thursday": [],
+        "Friday": [],
     }
 
     for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']:
@@ -806,17 +861,36 @@ elif st.session_state.page == 'output':
             day_data = schedule_table_data[schedule_table_data['Day of Week'] == day]
             capacity = day_data[capacity_column].values[0]
             attendance = day_data['Attendance'].values[0]
+            graduations = day_data['Graduations'].values[0]
+            admissions = day_data['Admissions'].values[0]
             color = 'red' if capacity == max_capacity else 'green'
 
-            table_data["Day"].append(day)
-            table_data["Capacity"].append(
-                f'<div class="tooltip" style="color: {color};">{capacity}<span class="tooltiptext">{attendance}</span></div>'
-            )
+            table_data[day].append(f'<div class="tooltip" style="color: {color};"><b>{capacity}</b><span class="tooltiptext">Attendance: {attendance}<br>Graduations: {graduations}<br>Admissions: {admissions}</span></div>')
+        else:
+            table_data[day].append('')
 
-    schedule_df = pd.DataFrame(table_data).T
+    schedule_df = pd.DataFrame(table_data)
 
-    st.markdown("<h3 class='centered'>Schedule Availability</h3>", unsafe_allow_html=True)
-    st.write(schedule_df.to_html(escape=False, header=False, classes="horizontal-table centered"), unsafe_allow_html=True)
+    # Generate table with inline styles for headers
+    schedule_html = f"""
+    <h3 class='centered'>Schedule Availability</h3>
+    <table class='horizontal-table centered'>
+        <thead>
+            <tr>
+                <th class="table-header">Day</th>
+                {" ".join([f'<th class="table-header">{day}</th>' for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']])}
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <th class="table-header">Kids in Class</th>
+                {" ".join([f'<td>{table_data[day][0]}</td>' for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']])}
+            </tr>
+        </tbody>
+    </table>
+    """
+
+    st.markdown(schedule_html, unsafe_allow_html=True)
 
     # Generate the 3-month calendar view
     def generate_calendar(start_date, class_name, simulation_results, max_capacity):
@@ -845,10 +919,12 @@ elif st.session_state.page == 'output':
                 else:
                     sim_result = simulation_results[simulation_results['Date'] == day.strftime('%Y-%m-%d')]
                     if not sim_result.empty:
-                        capacity = sim_result.iloc[0][f"Capacity for {class_name}"]
+                        capacity = sim_result.iloc[0][f"Kids in Class for {class_name}"]  # Changed label
                         attendance = sim_result.iloc[0]['Attendance']
+                        graduations = sim_result.iloc[0]['Graduations']
+                        admissions = sim_result.iloc[0]['Admissions']
                         color_class = "green" if capacity < max_capacity else "red"
-                        tooltip_text = f"Capacity: {capacity}<br>Attendance: {attendance}"
+                        tooltip_text = f"Capacity: {capacity}<br>Attendance: {attendance}<br>Graduations: {graduations}<br>Admissions: {admissions}"
 
                 calendar_html += f"<div class='calendar-day {color_class}'><div class='tooltip'>{day.day}<span class='tooltiptext'>{tooltip_text}</span></div></div>"
                 day += timedelta(days=1)
@@ -861,10 +937,10 @@ elif st.session_state.page == 'output':
 
     # Display the uploaded Excel files
     st.markdown("<h3 class='centered'>Uploaded Excel Files</h3>", unsafe_allow_html=True)
-    st.markdown("<h4 class='centered'>Active Students Data (after skipping first 4 rows):</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 class='centered'>Active Students Data:</h4>", unsafe_allow_html=True)
     st.dataframe(active_df)
 
-    st.markdown("<h4 class='centered'>Hold Students Data (after skipping first 4 rows):</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 class='centered'>Hold Students Data:</h4>", unsafe_allow_html=True)
     st.dataframe(hold_df)
 
     st.markdown("<h4 class='centered'>FTE Data:</h4>", unsafe_allow_html=True)
