@@ -249,10 +249,6 @@ class Classroom:
         self.graduated_students = []
 
     def read_existing_data(self, active_df, hold_df):
-        # Ensure missing values in 'Tags' are handled by filling with a default value (e.g., 'Unknown')
-        active_df['Tags'] = active_df['Tags'].fillna('Unknown')
-        hold_df['Tags'] = hold_df['Tags'].fillna('Unknown')
-
         active_df = active_df[['First Name', 'Dob', 'Room', 'Time Schedule', 'Tags', 'Admission Date']]
         active_df = active_df.rename(
             columns={'First Name': 'Name', 'Dob': 'DoB', 'Room': 'Room', 'Time Schedule': 'Schedule',
@@ -265,14 +261,6 @@ class Classroom:
             columns={'First Name': 'Name', 'Dob': 'DoB', 'Room': 'Room', 'Time Schedule': 'Schedule',
                      'Tags': 'Program Type', 'Admission Date': 'Admission Date'})
         hold_df['Program Type'] = hold_df['Program Type'].str.contains('FlexEd').map({True: 'Flexible', False: 'Fixed'})
-
-        # Process and convert schedules
-        active_df['Schedule'] = active_df['Schedule'].apply(convert_days)
-        active_df['Schedule'] = active_df['Schedule'].apply(lambda x: x.split(','))
-        hold_df['Schedule'] = hold_df['Schedule'].apply(convert_days)
-        hold_df['Schedule'] = hold_df['Schedule'].apply(lambda x: x.split(','))
-
-        # The rest of your code continues here...
 
         def convert_days(schedule):
             day_mapping = {
